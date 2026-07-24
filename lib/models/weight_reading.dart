@@ -54,22 +54,23 @@ class WeightReading {
       }
 
       // 2. Parseo flexible mediante Regex para atrapar cosas como "+   35.0 kg" o "=12.34lb"
-      // Busca un signo opcional, seguido de números y un punto decimal, y luego una unidad opcional
-      final reg = RegExp(r'([+\-]?)[\s=]*([0-9]+\.?[0-9]*)\s*(kg|lb|g)?', caseSensitive: false);
+      // Busca opcionalmente ST/US, seguido de un signo opcional, números y un punto decimal, y luego una unidad opcional
+      final reg = RegExp(r'(ST|US|)?[\s=,]*([+\-]?)[\s=]*([0-9]+\.?[0-9]*)\s*(kg|lb|g)?', caseSensitive: false);
       final match = reg.firstMatch(line);
       
       if (match != null) {
-        final sign = match.group(1) ?? '';
-        final valStr = match.group(2) ?? '0';
-        final unitStr = (match.group(3) ?? 'kg').toLowerCase();
+        final statusStr = (match.group(1) ?? '').toUpperCase();
+        final sign = match.group(2) ?? '';
+        final valStr = match.group(3) ?? '0';
+        final unitStr = (match.group(4) ?? 'kg').toLowerCase();
         
         final decimals = valStr.contains('.') ? valStr.split('.').last.length : 0;
         
         return WeightReading(
           value: double.tryParse(valStr) ?? 0.0,
-          unit: unitStr,
+          unit: unitStr.isNotEmpty ? unitStr : 'kg',
           decimalPlaces: decimals,
-          isStable: true, // Asumimos estable si nos mandó el dato directo
+          isStable: statusStr == 'US' ? false : true, // Asumimos estable por defecto, a menos que diga explícitamente US (Unstable)
           isGross: true,
           isOverload: false,
           isNegative: sign == '-',

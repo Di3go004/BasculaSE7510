@@ -542,13 +542,11 @@ class _ControlButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 14),
           elevation: 0,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 24),
-            const SizedBox(height: 4),
-            Text(label, style: const TextStyle(fontSize: 13)),
-          ],
+        child: Center(
+          child: Text(
+            label.toUpperCase(),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+          ),
         ),
       ),
     );
