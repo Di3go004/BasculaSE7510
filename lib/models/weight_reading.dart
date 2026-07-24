@@ -3,6 +3,7 @@
 class WeightReading {
   final double value;
   final String unit;       // "kg" o "lb"
+  final int decimalPlaces; // Cantidad de decimales dinámicos
   final bool isStable;     // ST = estable, US = inestable
   final bool isGross;      // GS = bruto, NT = neto
   final bool isOverload;   // OL = sobrecarga
@@ -12,6 +13,7 @@ class WeightReading {
   WeightReading({
     required this.value,
     required this.unit,
+    required this.decimalPlaces,
     required this.isStable,
     required this.isGross,
     required this.isOverload,
@@ -35,10 +37,13 @@ class WeightReading {
           final signStr = parts[2].trim();
           final valueStr = parts[3].trim();
           final unitStr = parts[4].trim().toLowerCase();
+          
+          final decimals = valueStr.contains('.') ? valueStr.split('.').last.length : 0;
 
           return WeightReading(
             value: double.tryParse(valueStr) ?? 0.0,
             unit: unitStr.isNotEmpty ? unitStr : 'kg',
+            decimalPlaces: decimals,
             isStable: statusStr == 'ST',
             isGross: modeStr == 'GS',
             isOverload: statusStr == 'OL',
@@ -58,9 +63,12 @@ class WeightReading {
         final valStr = match.group(2) ?? '0';
         final unitStr = (match.group(3) ?? 'kg').toLowerCase();
         
+        final decimals = valStr.contains('.') ? valStr.split('.').last.length : 0;
+        
         return WeightReading(
           value: double.tryParse(valStr) ?? 0.0,
           unit: unitStr,
+          decimalPlaces: decimals,
           isStable: true, // Asumimos estable si nos mandó el dato directo
           isGross: true,
           isOverload: false,
@@ -81,7 +89,7 @@ class WeightReading {
   /// Texto para mostrar en la UI
   String get displayValue {
     if (isOverload) return 'SOBRECARGA';
-    return '${isNegative ? "-" : ""}${value.toStringAsFixed(2)} $unit';
+    return '${isNegative ? "-" : ""}${value.toStringAsFixed(decimalPlaces)} $unit';
   }
 
   String get modeLabel => isGross ? 'BRUTO' : 'NETO';
