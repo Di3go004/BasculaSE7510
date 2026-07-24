@@ -53,19 +53,19 @@ class _ConnectScreenState extends State<ConnectScreen> {
     final address = device['address']!;
     setState(() => _connectingAddress = address);
 
-    final error = await widget.btService.connect(address);
+    final success = await widget.btService.connect(address);
 
     if (!mounted) return;
     setState(() => _connectingAddress = null);
 
-    if (error == null) {
+    if (success) {
       Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $error'),
+        const SnackBar(
+          content: Text('No se pudo conectar. Asegúrate de que la báscula esté encendida y pareada.'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 6),
+          duration: Duration(seconds: 6),
         ),
       );
     }

@@ -5,6 +5,7 @@ import 'connect_screen.dart';
 import 'dart:io';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Pantalla principal — muestra el peso en tiempo real del SE7510.
 class HomeScreen extends StatefulWidget {
@@ -32,6 +33,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _formatDate(DateTime dt) {
     return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _launchCompanySite() async {
+    final url = Uri.parse('https://www.soluciones-exactas.com/');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _launchWhatsApp() async {
+    final url = Uri.parse('whatsapp://send?phone=50259685590');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      final webUrl = Uri.parse('https://wa.me/50259685590');
+      if (await canLaunchUrl(webUrl)) {
+        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+      }
+    }
   }
 
   @override
@@ -87,9 +107,12 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: brandDarkBlue,
         elevation: 0,
-        title: const Text(
-          'SOLUCIONES EXACTAS S.A.',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18),
+        title: GestureDetector(
+          onTap: _launchCompanySite,
+          child: const Text(
+            'SOLUCIONES EXACTAS S.A.',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18),
+          ),
         ),
         actions: [
           // Indicador de conexión (Punto de estado minimalista)
@@ -236,33 +259,6 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Column(
                 children: [
-                  // Fila 1: Botones principales de báscula
-                  Row(
-                    children: [
-                      _ControlButton(
-                        label: 'Tarar',
-                        icon: Icons.exposure_zero,
-                        color: brandLightBlue,
-                        onPressed: _isConnected ? _btService.tare : null,
-                      ),
-                      const SizedBox(width: 8),
-                      _ControlButton(
-                        label: 'Cero',
-                        icon: Icons.refresh,
-                        color: brandLightBlue,
-                        onPressed: _isConnected ? _btService.zero : null,
-                      ),
-                      const SizedBox(width: 8),
-                      _ControlButton(
-                        label: 'kg / lb',
-                        icon: Icons.swap_horiz,
-                        color: brandLightBlue,
-                        onPressed: _isConnected ? _btService.toggleUnit : null,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  
                   // Botón GUARDAR a ancho completo
                   SizedBox(
                     width: double.infinity,
@@ -386,6 +382,65 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF16213E),
+          border: Border(
+            top: BorderSide(color: const Color(0xFF5AB4E5).withOpacity(0.25), width: 1),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Logo / nombre empresa
+            const Text(
+              'SOLUCIONES EXACTAS S.A.',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Botón WhatsApp
+            GestureDetector(
+              onTap: _launchWhatsApp,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF25D366).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: const Color(0xFF25D366).withOpacity(0.5)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.chat_rounded, color: Color(0xFF25D366), size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      '+502 5968-5590',
+                      style: TextStyle(
+                        color: Color(0xFF25D366),
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Derechos reservados
+            const Text(
+              '© 2026 Soluciones Exactas S.A. — Todos los derechos reservados',
+              style: TextStyle(color: Colors.white30, fontSize: 10),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
