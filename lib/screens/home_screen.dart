@@ -83,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: brandDarkBlue,
+      resizeToAvoidBottomInset: false, // Evita que la pantalla se apriete cuando sale el teclado
       appBar: AppBar(
         backgroundColor: brandDarkBlue,
         elevation: 0,
