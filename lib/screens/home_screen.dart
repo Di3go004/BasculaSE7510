@@ -16,6 +16,21 @@ class _HomeScreenState extends State<HomeScreen> {
   WeightReading? _lastReading;
   bool _isConnected = false;
 
+  // Lista para guardar pesajes
+  final List<WeightReading> _savedReadings = [];
+
+  void _saveCurrentReading() {
+    if (_lastReading != null && _isConnected) {
+      setState(() {
+        _savedReadings.insert(0, _lastReading!);
+      });
+    }
+  }
+
+  String _formatDate(DateTime dt) {
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -207,59 +222,130 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // ── BOTONES DE CONTROL ──
+          // ── BOTONES DE CONTROL Y LISTA ──
           Expanded(
-            flex: 2,
+            flex: 3,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Column(
                 children: [
-                  // Fila 1: Tare y Zero
-                  Expanded(
-                    child: Row(
-                      children: [
-                        _ControlButton(
-                          label: 'Tarar',
-                          icon: Icons.exposure_zero,
-                          color: Colors.blue,
-                          onPressed: _isConnected ? _btService.tare : null,
-                        ),
-                        const SizedBox(width: 12),
-                        _ControlButton(
-                          label: 'Cero',
-                          icon: Icons.refresh,
-                          color: Colors.teal,
-                          onPressed: _isConnected ? _btService.zero : null,
-                        ),
-                      ],
+                  // Fila 1: Botones principales de báscula
+                  Row(
+                    children: [
+                      _ControlButton(
+                        label: 'Tarar',
+                        icon: Icons.exposure_zero,
+                        color: Colors.blue,
+                        onPressed: _isConnected ? _btService.tare : null,
+                      ),
+                      const SizedBox(width: 8),
+                      _ControlButton(
+                        label: 'Cero',
+                        icon: Icons.refresh,
+                        color: Colors.teal,
+                        onPressed: _isConnected ? _btService.zero : null,
+                      ),
+                      const SizedBox(width: 8),
+                      _ControlButton(
+                        label: 'kg / lb',
+                        icon: Icons.swap_horiz,
+                        color: Colors.purple,
+                        onPressed: _isConnected ? _btService.toggleUnit : null,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Botón GUARDAR a ancho completo
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton.icon(
+                      onPressed: _isConnected && _lastReading != null ? _saveCurrentReading : null,
+                      icon: const Icon(Icons.save_alt, size: 22),
+                      label: const Text('GUARDAR PESAJE', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber.withOpacity(0.2),
+                        foregroundColor: Colors.amber,
+                        side: BorderSide(color: Colors.amber.withOpacity(0.5)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  // Fila 2: Cambiar unidad y conectar
+
+                  // Lista de pesajes guardados
                   Expanded(
-                    child: Row(
-                      children: [
-                        _ControlButton(
-                          label: 'kg / lb',
-                          icon: Icons.swap_horiz,
-                          color: Colors.purple,
-                          onPressed: _isConnected ? _btService.toggleUnit : null,
-                        ),
-                        const SizedBox(width: 12),
-                        _ControlButton(
-                          label: _isConnected ? 'Desconectar' : 'Conectar',
-                          icon: _isConnected
-                              ? Icons.bluetooth_disabled
-                              : Icons.bluetooth,
-                          color: _isConnected ? Colors.red : Colors.green,
-                          onPressed: _isConnected
-                              ? () async {
-                                  await _btService.disconnect();
-                                  setState(() => _isConnected = false);
-                                }
-                              : _goToConnect,
-                        ),
-                      ],
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.03),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      ),
+                      child: _savedReadings.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'Aún no hay pesajes guardados',
+                                style: TextStyle(color: Colors.white38),
+                              ),
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.all(8),
+                              itemCount: _savedReadings.length,
+                              separatorBuilder: (_, __) => const Divider(color: Colors.white12, height: 1),
+                              itemBuilder: (context, index) {
+                                final r = _savedReadings[index];
+                                // Indice invertido para que el más nuevo salga primero con el número mayor
+                                final displayIndex = _savedReadings.length - index;
+                                return ListTile(
+                                  dense: true,
+                                  leading: CircleAvatar(
+                                    radius: 12,
+                                    backgroundColor: Colors.amber.withOpacity(0.2),
+                                    child: Text('$displayIndex', style: const TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  ),
+                                  title: Text(
+                                    r.displayValue,
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, fontFeatures: [FontFeature.tabularFigures()]),
+                                  ),
+                                  subtitle: Text(
+                                    '${_formatDate(r.timestamp)} ${_formatTime(r.timestamp)}',
+                                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.delete_outline, color: Colors.white38, size: 20),
+                                    onPressed: () {
+                                      setState(() => _savedReadings.removeAt(index));
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Botón Conectar/Desconectar a ancho completo
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: _isConnected
+                          ? () async {
+                              await _btService.disconnect();
+                              setState(() => _isConnected = false);
+                            }
+                          : _goToConnect,
+                      icon: Icon(_isConnected ? Icons.bluetooth_disabled : Icons.bluetooth, size: 20),
+                      label: Text(_isConnected ? 'Desconectar' : 'Conectar', style: const TextStyle(fontSize: 15)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: (_isConnected ? Colors.red : Colors.green).withOpacity(0.15),
+                        foregroundColor: _isConnected ? Colors.red : Colors.green,
+                        side: BorderSide(color: (_isConnected ? Colors.red : Colors.green).withOpacity(0.5)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
                     ),
                   ),
                 ],
