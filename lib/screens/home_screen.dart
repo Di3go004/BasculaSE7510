@@ -64,44 +64,32 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF16213E),
         title: const Text(
-          'Báscula SE7510',
+          'SOLUCIONES EXACTAS S.A.',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
         actions: [
-          // Indicador de conexión
+          // Indicador de conexión (Punto de estado minimalista)
           Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.only(right: 16),
             child: Center(
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _isConnected
-                      ? Colors.green.withOpacity(0.2)
-                      : Colors.red.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _isConnected ? Colors.green : Colors.red,
-                    width: 0.5,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _isConnected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
-                      color: _isConnected ? Colors.green : Colors.red,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _isConnected ? 'Conectado' : 'Sin conexión',
-                      style: TextStyle(
-                        color: _isConnected ? Colors.green : Colors.red,
-                        fontSize: 12,
+              child: Tooltip(
+                message: _isConnected ? 'Conectado a la báscula' : 'Sin conexión',
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _isConnected ? Colors.greenAccent : Colors.redAccent,
+                    boxShadow: [
+                      BoxShadow(
+                        color: _isConnected 
+                            ? Colors.greenAccent.withOpacity(0.6) 
+                            : Colors.redAccent.withOpacity(0.6),
+                        blurRadius: 8,
+                        spreadRadius: 2,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
