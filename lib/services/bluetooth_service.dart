@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../models/weight_reading.dart';
 
-/// Maneja la conexión BLE con el indicador de peso.
+/// Maneja la conexión BLE con el indicador de peso..
 /// La báscula L250920 usa Bluetooth Low Energy (GATT) con la característica
 /// 00002af0-0000-1000-8000-00805f9b34fb para enviar datos de peso.
 class ScaleBluetoothService {
