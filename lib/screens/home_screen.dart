@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../models/weight_reading.dart';
 import '../services/bluetooth_service.dart';
 import 'connect_screen.dart';
+import 'dart:io';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// Pantalla principal — muestra el peso en tiempo real del SE7510.
 class HomeScreen extends StatefulWidget {
@@ -326,27 +329,53 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Botón Conectar/Desconectar a ancho completo
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: _isConnected
-                          ? () async {
-                              await _btService.disconnect();
-                              setState(() => _isConnected = false);
-                            }
-                          : _goToConnect,
-                      icon: Icon(_isConnected ? Icons.bluetooth_disabled : Icons.bluetooth, size: 20),
-                      label: Text(_isConnected ? 'Desconectar' : 'Conectar', style: const TextStyle(fontSize: 15)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: (_isConnected ? Colors.red : Colors.green).withOpacity(0.15),
-                        foregroundColor: _isConnected ? Colors.red : Colors.green,
-                        side: BorderSide(color: (_isConnected ? Colors.red : Colors.green).withOpacity(0.5)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        elevation: 0,
+                  // Botones inferiores (Conectar y Exportar)
+                  Row(
+                    children: [
+                      // Botón Conectar/Desconectar
+                      Expanded(
+                        child: SizedBox(
+                          height: 50,
+                          child: ElevatedButton.icon(
+                            onPressed: _isConnected
+                                ? () async {
+                                    await _btService.disconnect();
+                                    setState(() => _isConnected = false);
+                                  }
+                                : _goToConnect,
+                            icon: Icon(_isConnected ? Icons.bluetooth_disabled : Icons.bluetooth, size: 20),
+                            label: Text(_isConnected ? 'Desconectar' : 'Conectar', style: const TextStyle(fontSize: 14)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: (_isConnected ? Colors.red : Colors.green).withOpacity(0.15),
+                              foregroundColor: _isConnected ? Colors.red : Colors.green,
+                              side: BorderSide(color: (_isConnected ? Colors.red : Colors.green).withOpacity(0.5)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      
+                      // Botón Exportar
+                      Expanded(
+                        child: SizedBox(
+                          height: 50,
+                          child: ElevatedButton.icon(
+                            onPressed: _savedReadings.isEmpty ? null : _showExportDialog,
+                            icon: const Icon(Icons.share, size: 20),
+                            label: const Text('Exportar', style: TextStyle(fontSize: 14)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.withOpacity(0.15),
+                              foregroundColor: Colors.blue,
+                              side: BorderSide(color: Colors.blue.withOpacity(0.5)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -361,6 +390,122 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${dt.hour.toString().padLeft(2, '0')}:'
         '${dt.minute.toString().padLeft(2, '0')}:'
         '${dt.second.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _showExportDialog() async {
+    if (_savedReadings.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay pesajes guardados para exportar.')),
+      );
+      return;
+    }
+
+    String fileName = 'Pesajes_SE7510';
+    String fileExt = '.csv'; // .csv (Excel) o .txt
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF16213E),
+              title: const Text('Exportar Pesajes', style: TextStyle(color: Colors.white)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre del archivo',
+                      labelStyle: TextStyle(color: Colors.white54),
+                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.blue)),
+                    ),
+                    onChanged: (val) => fileName = val.isEmpty ? 'Pesajes_SE7510' : val,
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Excel (.csv)'),
+                        selected: fileExt == '.csv',
+                        onSelected: (val) => setStateDialog(() => fileExt = '.csv'),
+                        selectedColor: Colors.blue.withOpacity(0.3),
+                        labelStyle: TextStyle(color: fileExt == '.csv' ? Colors.blue : Colors.white),
+                        backgroundColor: Colors.transparent,
+                      ),
+                      ChoiceChip(
+                        label: const Text('Texto (.txt)'),
+                        selected: fileExt == '.txt',
+                        onSelected: (val) => setStateDialog(() => fileExt = '.txt'),
+                        selectedColor: Colors.blue.withOpacity(0.3),
+                        labelStyle: TextStyle(color: fileExt == '.txt' ? Colors.blue : Colors.white),
+                        backgroundColor: Colors.transparent,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _exportAndShare(fileName, fileExt);
+                  },
+                  child: const Text('Compartir'),
+                ),
+              ],
+            );
+          }
+        );
+      }
+    );
+  }
+
+  Future<void> _exportAndShare(String name, String ext) async {
+    try {
+      final directory = await getTemporaryDirectory();
+      final file = File('${directory.path}/$name$ext');
+
+      StringBuffer buffer = StringBuffer();
+      
+      // Encabezados
+      if (ext == '.csv') {
+        buffer.writeln('No.,Fecha,Hora,Peso,Unidad,Modo,Estado');
+      } else {
+        buffer.writeln('--- REPORTE DE PESAJES ---');
+        buffer.writeln('Fecha de exportación: ${_formatDate(DateTime.now())} ${_formatTime(DateTime.now())}\n');
+      }
+
+      // Datos
+      for (int i = 0; i < _savedReadings.length; i++) {
+        final r = _savedReadings[i];
+        final index = _savedReadings.length - i;
+        final date = _formatDate(r.timestamp);
+        final time = _formatTime(r.timestamp);
+        
+        if (ext == '.csv') {
+          buffer.writeln('$index,$date,$time,${r.value},${r.unit},${r.modeLabel},${r.stabilityLabel}');
+        } else {
+          buffer.writeln('$index. $date $time | Peso: ${r.value} ${r.unit} (${r.modeLabel})');
+        }
+      }
+
+      await file.writeAsString(buffer.toString());
+
+      // Compartir archivo
+      await Share.shareXFiles([XFile(file.path)], text: 'Aquí están los pesajes exportados de SOLUCIONES EXACTAS.');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al exportar: $e')));
+      }
+    }
   }
 }
 

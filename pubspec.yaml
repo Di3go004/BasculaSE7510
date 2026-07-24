@@ -37,6 +37,8 @@ dependencies:
   shared_preferences: ^2.2.2
   # Para permisos en tiempo de ejecución
   permission_handler: ^11.0.1
+  share_plus: ^10.1.0
+  path_provider: ^2.1.4
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -58,10 +60,10 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   color: "#0c1527" # Un color oscuro acorde a la app
-  image: "assets/logo.png"
+  image: "assets/logo_splash.png"
   android_12:
-    image: "assets/logo.png"
-    icon_background_color: "#0c1527"
+    image: "assets/logo_splash.png"
+    color: "#0c1527"
 
 flutter:
 
