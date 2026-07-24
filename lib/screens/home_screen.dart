@@ -77,13 +77,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const brandDarkBlue = Color(0xFF0c1527);
+    const brandLightBlue = Color(0xFF5AB4E5);
+    const panelColor = Color(0xFF16213E);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A2E),
+      backgroundColor: brandDarkBlue,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF16213E),
+        backgroundColor: brandDarkBlue,
+        elevation: 0,
         title: const Text(
           'SOLUCIONES EXACTAS S.A.',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18),
         ),
         actions: [
           // Indicador de conexión (Punto de estado minimalista)
@@ -116,28 +121,27 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          // ── DISPLAY PRINCIPAL DE PESO ──
-          Expanded(
-            flex: 3,
-            child: Container(
-              width: double.infinity,
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F3460),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: _lastReading?.isStable == true
-                      ? Colors.green.withOpacity(0.5)
-                      : Colors.orange.withOpacity(0.3),
-                  width: 1.5,
+          // ── DISPLAY PRINCIPAL DE PESO (Rectangular) ──
+          Container(
+            width: double.infinity,
+            height: 200, // Altura fija para que parezca una pantalla LCD
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: panelColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _lastReading?.isStable == true
+                    ? Colors.green.withOpacity(0.8)
+                    : brandLightBlue.withOpacity(0.5),
+                width: 2.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: brandLightBlue.withOpacity(0.05),
+                  blurRadius: 20,
+                  spreadRadius: 2,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.withOpacity(0.1),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  ),
-                ],
+              ],
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -223,7 +227,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-          ),
 
           // ── BOTONES DE CONTROL Y LISTA ──
           Expanded(
@@ -238,21 +241,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       _ControlButton(
                         label: 'Tarar',
                         icon: Icons.exposure_zero,
-                        color: Colors.blue,
+                        color: brandLightBlue,
                         onPressed: _isConnected ? _btService.tare : null,
                       ),
                       const SizedBox(width: 8),
                       _ControlButton(
                         label: 'Cero',
                         icon: Icons.refresh,
-                        color: Colors.teal,
+                        color: brandLightBlue,
                         onPressed: _isConnected ? _btService.zero : null,
                       ),
                       const SizedBox(width: 8),
                       _ControlButton(
                         label: 'kg / lb',
                         icon: Icons.swap_horiz,
-                        color: Colors.purple,
+                        color: brandLightBlue,
                         onPressed: _isConnected ? _btService.toggleUnit : null,
                       ),
                     ],
@@ -268,9 +271,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: const Icon(Icons.save_alt, size: 22),
                       label: const Text('GUARDAR PESAJE', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber.withOpacity(0.2),
-                        foregroundColor: Colors.amber,
-                        side: BorderSide(color: Colors.amber.withOpacity(0.5)),
+                        backgroundColor: brandLightBlue.withOpacity(0.2),
+                        foregroundColor: brandLightBlue,
+                        side: BorderSide(color: brandLightBlue.withOpacity(0.5)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         elevation: 0,
                       ),
@@ -305,8 +308,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   dense: true,
                                   leading: CircleAvatar(
                                     radius: 12,
-                                    backgroundColor: Colors.amber.withOpacity(0.2),
-                                    child: Text('$displayIndex', style: const TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    backgroundColor: brandLightBlue.withOpacity(0.2),
+                                    child: Text('$displayIndex', style: const TextStyle(color: brandLightBlue, fontSize: 10, fontWeight: FontWeight.bold)),
                                   ),
                                   title: Text(
                                     r.displayValue,
