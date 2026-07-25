@@ -37,20 +37,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _launchCompanySite() async {
     final url = Uri.parse('https://www.soluciones-exactas.com/');
-    if (await canLaunchUrl(url)) {
+    try {
       await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Fallback: intentar con el modo por defecto
+      await launchUrl(url);
     }
   }
 
   Future<void> _launchWhatsApp() async {
-    final url = Uri.parse('whatsapp://send?phone=50259685590');
-    if (await canLaunchUrl(url)) {
+    try {
+      final url = Uri.parse('whatsapp://send?phone=50259685590');
       await launchUrl(url);
-    } else {
-      final webUrl = Uri.parse('https://wa.me/50259685590');
-      if (await canLaunchUrl(webUrl)) {
+    } catch (_) {
+      try {
+        final webUrl = Uri.parse('https://wa.me/50259685590');
         await launchUrl(webUrl, mode: LaunchMode.externalApplication);
-      }
+      } catch (_) {}
     }
   }
 
