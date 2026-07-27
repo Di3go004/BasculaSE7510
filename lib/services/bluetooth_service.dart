@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../models/weight_reading.dart';
 
-/// Maneja la conexión BLE con el indicador de peso.
+/// Maneja la conexión BLE con el indicador de peso...
 class ScaleBluetoothService {
   // UUID de la característica de peso (capturado del dispositivo)
   static const String _weightCharUuid = '00002af0-0000-1000-8000-00805f9b34fb';
