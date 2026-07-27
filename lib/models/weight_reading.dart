@@ -3,6 +3,7 @@
 class WeightReading {
   final double value;
   final String unit;       // "kg" o "lb"
+  final int decimalPlaces; // Cantidad de decimales dinámicos
   final bool isStable;     // ST = estable, US = inestable
   final bool isGross;      // GS = bruto, NT = neto
   final bool isOverload;   // OL = sobrecarga
@@ -12,6 +13,7 @@ class WeightReading {
   WeightReading({
     required this.value,
     required this.unit,
+    required this.decimalPlaces,
     required this.isStable,
     required this.isGross,
     required this.isOverload,
@@ -35,10 +37,13 @@ class WeightReading {
           final signStr = parts[2].trim();
           final valueStr = parts[3].trim();
           final unitStr = parts[4].trim().toLowerCase();
+          
+          final decimals = valueStr.contains('.') ? valueStr.split('.').last.length : 0;
 
           return WeightReading(
             value: double.tryParse(valueStr) ?? 0.0,
             unit: unitStr.isNotEmpty ? unitStr : 'kg',
+            decimalPlaces: decimals,
             isStable: statusStr == 'ST',
             isGross: modeStr == 'GS',
             isOverload: statusStr == 'OL',
@@ -49,19 +54,23 @@ class WeightReading {
       }
 
       // 2. Parseo flexible mediante Regex para atrapar cosas como "+   35.0 kg" o "=12.34lb"
-      // Busca un signo opcional, seguido de números y un punto decimal, y luego una unidad opcional
-      final reg = RegExp(r'([+\-]?)[\s=]*([0-9]+\.?[0-9]*)\s*(kg|lb|g)?', caseSensitive: false);
+      // Busca opcionalmente ST/US, seguido de un signo opcional, números y un punto decimal, y luego una unidad opcional
+      final reg = RegExp(r'(ST|US|)?[\s=,]*([+\-]?)[\s=]*([0-9]+\.?[0-9]*)\s*(kg|lb|g)?', caseSensitive: false);
       final match = reg.firstMatch(line);
       
       if (match != null) {
-        final sign = match.group(1) ?? '';
-        final valStr = match.group(2) ?? '0';
-        final unitStr = (match.group(3) ?? 'kg').toLowerCase();
+        final statusStr = (match.group(1) ?? '').toUpperCase();
+        final sign = match.group(2) ?? '';
+        final valStr = match.group(3) ?? '0';
+        final unitStr = (match.group(4) ?? 'kg').toLowerCase();
+        
+        final decimals = valStr.contains('.') ? valStr.split('.').last.length : 0;
         
         return WeightReading(
           value: double.tryParse(valStr) ?? 0.0,
-          unit: unitStr,
-          isStable: true, // Asumimos estable si nos mandó el dato directo
+          unit: unitStr.isNotEmpty ? unitStr : 'kg',
+          decimalPlaces: decimals,
+          isStable: statusStr == 'US' ? false : true, // Asumimos estable por defecto, a menos que diga explícitamente US (Unstable)
           isGross: true,
           isOverload: false,
           isNegative: sign == '-',
@@ -81,7 +90,7 @@ class WeightReading {
   /// Texto para mostrar en la UI
   String get displayValue {
     if (isOverload) return 'SOBRECARGA';
-    return '${isNegative ? "-" : ""}${value.toStringAsFixed(2)} $unit';
+    return '${isNegative ? "-" : ""}${value.toStringAsFixed(decimalPlaces)} $unit';
   }
 
   String get modeLabel => isGross ? 'BRUTO' : 'NETO';

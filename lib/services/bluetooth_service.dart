@@ -1,13 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../models/weight_reading.dart';
 
-/// Maneja la conexión BLE con el indicador de peso.
-/// La báscula L250920 usa Bluetooth Low Energy (GATT) con la característica
-/// 00002af0-0000-1000-8000-00805f9b34fb para enviar datos de peso.
+/// Maneja la conexión BLE con el indicador de peso...
 class ScaleBluetoothService {
-  // UUID de la característica de peso (capturado del WeighingBluetooth)
+  // UUID de la característica de peso (capturado del dispositivo)
   static const String _weightCharUuid = '00002af0-0000-1000-8000-00805f9b34fb';
 
   final StreamController<WeightReading> _weightController =
@@ -16,7 +13,8 @@ class ScaleBluetoothService {
       StreamController<bool>.broadcast();
 
   BluetoothDevice? _device;
-  BluetoothCharacteristic? _weightChar;
+  BluetoothCharacteristic? _weightChar; // Para leer (Notify/Read)
+  BluetoothCharacteristic? _writeChar;  // Para escribir (Write)
   StreamSubscription<BluetoothConnectionState>? _connectionSub;
   StreamSubscription<List<int>>? _dataSub;
   String _buffer = '';
@@ -27,27 +25,23 @@ class ScaleBluetoothService {
   bool get isConnected => _isConnected;
 
   /// Devuelve la lista de dispositivos BLE ya emparejados/conocidos
-  /// que coincidan con la dirección MAC del parámetro, o todos si está vacío.
   Future<List<Map<String, String>>> getPairedDevices() async {
-    // Para BLE, usamos los dispositivos del sistema (bonded + conocidos)
     final bonded = await FlutterBluePlus.bondedDevices;
     final connected = FlutterBluePlus.connectedDevices;
-
     final all = <BluetoothDevice>{...bonded, ...connected};
 
-    // Si la lista está vacía, intentar con system devices
     if (all.isEmpty) {
       final sys = await FlutterBluePlus.systemDevices([]);
       all.addAll(sys);
     }
 
     return all.map((d) => {
-      'name':    d.platformName.isNotEmpty ? d.platformName : 'Dispositivo BLE',
+      'name': d.platformName.isNotEmpty ? d.platformName : 'Dispositivo BLE',
       'address': d.remoteId.str,
     }).toList();
   }
 
-  /// Escanea brevemente y devuelve dispositivos BLE + bonded.
+  /// Alias para compatibilidad con connect_screen.dart
   Future<List<Map<String, String>>> scanAndGetDevices() async {
     final result = <String, Map<String, String>>{};
 
@@ -56,55 +50,39 @@ class ScaleBluetoothService {
       final bonded = await FlutterBluePlus.bondedDevices;
       for (final d in bonded) {
         result[d.remoteId.str] = {
-          'name':    d.platformName.isNotEmpty ? d.platformName : 'Dispositivo BLE',
+          'name': d.platformName.isNotEmpty ? d.platformName : 'Dispositivo BLE',
           'address': d.remoteId.str,
         };
       }
     } catch (_) {}
 
-    // Escanear 4 segundos para encontrar dispositivos BLE activos
+    // Escanear brevemente
     try {
-      if (await FlutterBluePlus.adapterState.first == BluetoothAdapterState.on) {
-        await FlutterBluePlus.startScan(timeout: const Duration(seconds: 4));
-        // Usar listen en vez de await for para no colgar el hilo
-        final sub = FlutterBluePlus.scanResults.listen((results) {
-          for (final r in results) {
-            final name = r.device.platformName.isNotEmpty
-                ? r.device.platformName
-                : (r.advertisementData.advName.isNotEmpty
-                    ? r.advertisementData.advName
-                    : 'Dispositivo BLE');
-            result[r.device.remoteId.str] = {
-              'name':    name,
-              'address': r.device.remoteId.str,
-            };
-          }
-        });
-        
-        await Future.delayed(const Duration(seconds: 4));
-        await FlutterBluePlus.stopScan();
-        await sub.cancel();
+      await FlutterBluePlus.startScan(timeout: const Duration(seconds: 4));
+      await Future.delayed(const Duration(seconds: 4));
+      await FlutterBluePlus.stopScan();
+      for (final r in FlutterBluePlus.lastScanResults) {
+        result[r.device.remoteId.str] = {
+          'name': r.device.platformName.isNotEmpty
+              ? r.device.platformName
+              : r.advertisementData.advName.isNotEmpty
+                  ? r.advertisementData.advName
+                  : 'BLE ${r.device.remoteId.str}',
+          'address': r.device.remoteId.str,
+        };
       }
     } catch (_) {}
 
     return result.values.toList();
   }
 
-  /// Conecta a un dispositivo BLE por su dirección MAC.
-  /// Devuelve null si tuvo éxito, o un String con el error.
-  Future<String?> connect(String address) async {
+  /// Conecta a un dispositivo BLE por su MAC/ID
+  Future<bool> connect(String address) async {
     try {
-      await disconnect();
-
       final device = BluetoothDevice(remoteId: DeviceIdentifier(address));
       _device = device;
 
-      // Conectar con timeout
-      await device.connect(timeout: const Duration(seconds: 15));
-      _isConnected = true;
-      _connectionController.add(true);
-
-      // Escuchar desconexiones
+      // Escuchar estado de conexión
       _connectionSub = device.connectionState.listen((state) {
         if (state == BluetoothConnectionState.disconnected) {
           _isConnected = false;
@@ -113,110 +91,119 @@ class ScaleBluetoothService {
         }
       });
 
+      await device.connect(timeout: const Duration(seconds: 10));
+
       // Descubrir servicios
       final services = await device.discoverServices();
 
-      // Buscar la característica de peso
+      // Buscar la característica de lectura y escritura
       BluetoothCharacteristic? weightChar;
-      print("---- SERVICIOS DESCUBIERTOS ----");
+      BluetoothCharacteristic? writeChar;
+
+      print('---- SERVICIOS DESCUBIERTOS ----');
       for (final service in services) {
-        print("Servicio: ${service.uuid.toString()}");
+        print('Servicio: ${service.uuid}');
         for (final char in service.characteristics) {
           final u = char.uuid.toString().toLowerCase();
           final props = char.properties;
-          print("  - Característica: $u (notify: ${props.notify}, indicate: ${props.indicate}, read: ${props.read})");
-          
+          print('  - Char: $u (notify:${props.notify} read:${props.read} write:${props.write})');
+
           if (u.contains('2af0') || u == _weightCharUuid) {
             weightChar = char;
-            print("  *** ¡ENCONTRADA CARACTERÍSTICA DE PESO 2AF0! ***");
+            print('  *** PESO 2AF0 encontrada ***');
+          }
+          if ((props.write || props.writeWithoutResponse) && writeChar == null) {
+            writeChar = char;
+            print('  *** ESCRITURA encontrada: $u ***');
           }
         }
       }
-      print("--------------------------------");
 
+      // Fallback: cualquier característica con notify
       if (weightChar == null) {
-        // Fallback inteligente: buscar una que tenga notify y NO sea la 2a05 (Service Changed)
         for (final service in services) {
           for (final char in service.characteristics) {
             final u = char.uuid.toString().toLowerCase();
-            if (u.contains('2a05')) continue; // Saltar Service Changed
-            
+            if (u.contains('2a05')) continue;
             if (char.properties.notify || char.properties.indicate) {
               weightChar = char;
-              print("  *** USANDO FALLBACK: $u ***");
+              print('  *** FALLBACK lectura: $u ***');
               break;
             }
           }
           if (weightChar != null) break;
         }
       }
+      print('--------------------------------');
 
       if (weightChar == null) {
         await device.disconnect();
         _isConnected = false;
         _connectionController.add(false);
-        return 'No se encontró la característica de peso en el dispositivo BLE';
+        return false;
       }
 
       _weightChar = weightChar;
+      _writeChar = writeChar ?? weightChar;
 
       // Activar notificaciones
       await weightChar.setNotifyValue(true);
+      _dataSub = weightChar.onValueReceived.listen(_onDataReceived);
 
-      // Escuchar datos
-      _dataSub = weightChar.lastValueStream.listen(_onData);
-
-      return null;
+      _isConnected = true;
+      _connectionController.add(true);
+      return true;
     } catch (e) {
+      print('BLE CONNECT ERROR: $e');
       _isConnected = false;
       _connectionController.add(false);
-      return 'Error BLE: ${e.toString()}';
+      return false;
     }
   }
 
-  void _onData(List<int> data) {
-    if (data.isEmpty) return;
-    
-    // LOGS PARA DEPURAR EL FORMATO
-    print("BLE RAW BYTES: $data");
-
+  /// Procesa los bytes recibidos y los convierte en lecturas de peso
+  void _onDataReceived(List<int> data) {
     try {
-      final str = utf8.decode(data, allowMalformed: true);
-      print("BLE CHUNK: '$str'");
+      _buffer += String.fromCharCodes(data);
 
-      _buffer += str;
-      print("BLE BUFFER ACTUAL: '$_buffer'");
+      while (_buffer.contains('\n')) {
+        final idx = _buffer.indexOf('\n');
+        final line = _buffer.substring(0, idx).trim();
+        _buffer = _buffer.substring(idx + 1);
 
-      // Intentar parsear el buffer
-      final reading = WeightReading.parse(_buffer);
-      if (reading != null) {
-        print("BLE PARSEADO EXITOSO: ${reading.value} ${reading.unit}");
-        _weightController.add(reading);
-        _buffer = ''; // Limpiar buffer si fue exitoso
-      } else if (_buffer.length > 200) {
-        print("BLE BUFFER OVERFLOW, LIMPIANDO");
-        _buffer = ''; // Evitar acumulación infinita
+        if (line.isNotEmpty) {
+          print('BLE RAW: $line');
+          final reading = WeightReading.parse(line);
+          if (reading != null) {
+            print('BLE PARSEADO: ${reading.value} ${reading.unit}');
+            _weightController.add(reading);
+          }
+        }
       }
+
+      // Evitar acumulación infinita
+      if (_buffer.length > 200) _buffer = '';
     } catch (e) {
-      print("BLE PARSE ERROR: $e");
+      print('BLE PARSE ERROR: $e');
     }
   }
 
-  /// Envía un comando a la báscula (si soporta escritura)
+  /// Envía un comando a la báscula
   Future<void> sendCommand(String command) async {
-    if (!_isConnected || _weightChar == null) return;
+    if (!_isConnected || _writeChar == null) return;
     try {
-      final char = _weightChar!;
+      final char = _writeChar!;
       if (char.properties.write || char.properties.writeWithoutResponse) {
-        await char.write(command.codeUnits, withoutResponse: char.properties.writeWithoutResponse);
+        await char.write(command.codeUnits,
+            withoutResponse: char.properties.writeWithoutResponse);
       }
     } catch (_) {}
   }
 
-  Future<void> tare()        => sendCommand('T');
-  Future<void> zero()        => sendCommand('Z');
-  Future<void> toggleUnit()  => sendCommand('C');
-  Future<void> readWeight()  => sendCommand('R');
+  Future<void> tare()       => sendCommand('T\r\n');
+  Future<void> zero()       => sendCommand('Z\r\n');
+  Future<void> toggleUnit() => sendCommand('C\r\n');
+  Future<void> readWeight() => sendCommand('R\r\n');
 
   /// Desconecta del dispositivo BLE
   Future<void> disconnect() async {
@@ -227,6 +214,7 @@ class ScaleBluetoothService {
     try { await _device?.disconnect(); } catch (_) {}
     _device = null;
     _weightChar = null;
+    _writeChar = null;
     _isConnected = false;
     _connectionController.add(false);
     _buffer = '';
