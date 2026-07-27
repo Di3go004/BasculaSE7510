@@ -31,7 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Bluetooth BLE (GATT) - el único que funcionó con esta báscula
+  # Bluetooth BLE (GATT) - el único que funcionó con esta báscula.
   flutter_blue_plus: ^1.35.5
   # Para guardar configuraciones
   shared_preferences: ^2.2.2
